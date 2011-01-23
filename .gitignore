@@ -1,0 +1,8 @@
+*.class
+.classpath
+.project
+.settings/
+*.zip
+*.tar
+*.gz
+storage/*

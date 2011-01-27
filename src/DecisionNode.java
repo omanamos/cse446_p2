@@ -1,4 +1,5 @@
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 
@@ -24,6 +25,10 @@ public class DecisionNode implements Node{
 	
 	public Node getChild(String value){
 		return this.children.get(value);
+	}
+	
+	public Iterator<Node> getChildren(){
+		return this.children.values().iterator();
 	}
 	
 	public String toString(){

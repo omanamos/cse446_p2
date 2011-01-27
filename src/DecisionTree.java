@@ -1,5 +1,7 @@
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -8,17 +10,21 @@ import java.util.Set;
 public class DecisionTree {
 	private Node root;
 	private SplitRule rule;
+	private int maxDepth;
+	private int depth;
 	
-	public DecisionTree(SplitRule rule){
+	public DecisionTree(SplitRule rule, int maxDepth){
 		this.rule = rule;
 		this.root = null;
+		this.maxDepth = maxDepth;
+		this.depth = 0;
 	}
 	
-	public Label predict(Example example){
+	public Label predict(Example e){
 		Node curRoot = this.root;
 		while(!(curRoot instanceof LeafNode)){
 			DecisionNode n = (DecisionNode)curRoot;
-			curRoot = n.getChild(example.getValue(n.getAttribute()));
+			curRoot = n.getChild(e.getValue(n.getAttribute()));
 		}
 		return ((LeafNode)curRoot).getClassification();
 	}
@@ -28,18 +34,18 @@ public class DecisionTree {
 		for(Attr a : Attr.values())
 			attributes.add(a);
 		
-		this.root = id3(divideExamples(examples), attributes);
+		this.root = id3(divideExamples(examples), attributes, 0);
 	}
 	
-	private Node id3(Map<Label, List<Example>> examples, List<Attr> attributes){
-		if(examples.keySet().size() == 1 || attributes.size() == 0){
+	private Node id3(Map<Label, List<Example>> examples, List<Attr> attributes, int curDepth){
+		if(examples.keySet().size() == 1 || attributes.size() == 0 || curDepth == this.maxDepth){
 			return classify(examples);
 		}else{
 			int attrIndex = getBestAttr(examples, attributes);
 			Attr a = attributes.get(attrIndex);
 			
 			Map<String, Map<Label, List<Example>>> splitExamples = divideExamples(examples, a);
-			Set<String> emptyValues = Attr.getMissingValues(a, splitExamples.keySet());
+			List<String> emptyValues = Attr.getMissingValues(a, splitExamples.keySet());
 			
 			DecisionNode curNode = new DecisionNode(a);
 			LeafNode curLeaf = classify(examples);
@@ -49,14 +55,17 @@ public class DecisionTree {
 			
 			attributes.remove(attrIndex);
 			for(String key : splitExamples.keySet())
-				curNode.addBranch(key, id3(splitExamples.get(key), attributes));
+				curNode.addBranch(key, id3(splitExamples.get(key), attributes, curDepth + 1));
 			attributes.add(attrIndex, a);
 			
+			this.depth = Math.max(this.depth, curDepth);
 			return curNode;
 		}
 	}
 	
 	private int getBestAttr(Map<Label, List<Example>> examples, List<Attr> attributes){
+		if(this.rule.equals(SplitRule.RANDOM))
+			return (int)(Math.random() * attributes.size());
 		int totalSize = Utils.getTotalSize(examples);
 		double currentImpurity = Utils.calculateImpurity(examples, totalSize, this.rule);
 		double maxInfoGain = -1.0;
@@ -122,6 +131,39 @@ public class DecisionTree {
 			rtn.get(l).add(e);
 		}
 		
+		return rtn;
+	}
+	
+	public String toString(){
+		Set<Node> frontier = new HashSet<Node>();
+		frontier.add(this.root);
+		String rtn = "";
+		int curDepth = -1;
+		
+		while(!frontier.isEmpty()){
+			Set<Node> newFront = new HashSet<Node>();
+			rtn += repeat("\t", this.depth - curDepth);
+			for(Node n : frontier){
+				rtn += n.toString() + repeat(" ", this.depth - curDepth + 1);
+				
+				if(n instanceof DecisionNode){
+					Iterator<Node> children = ((DecisionNode)n).getChildren();
+					while(children.hasNext()){
+						newFront.add(children.next());
+					}
+				}
+			}
+			curDepth++;
+			rtn += "\n";
+			frontier = newFront;
+		}
+		return rtn;
+	}
+	
+	private String repeat(String s, int cnt){
+		String rtn = "";
+		for(int i = 0; i < cnt; i++)
+			rtn += s;
 		return rtn;
 	}
 }

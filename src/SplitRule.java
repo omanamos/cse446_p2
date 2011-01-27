@@ -2,5 +2,5 @@
 public enum SplitRule {
 	RANDOM,
 	ENTROPY,
-	MISCLASS
+	ACCURACY
 }

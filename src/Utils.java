@@ -6,7 +6,7 @@ public class Utils {
 	public static double calculateImpurity(Map<Label, List<Example>> examples, int size, SplitRule rule){
 		switch(rule){
 		case ENTROPY: return calculateEntropyImpurity(examples, size);
-		case MISCLASS: return calculateMisclassificationImpurity(examples, size);
+		case ACCURACY: return calculateMisclassificationImpurity(examples, size);
 		default:
 			throw new IllegalArgumentException("Illegal SplitRule: " + rule);
 		}

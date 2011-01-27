@@ -1,5 +1,7 @@
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,9 +30,13 @@ public enum Attr {
 		return attrLookup.get(a).containsKey(value);
 	}
 	
-	public static Set<String> getMissingValues(Attr a, Collection<String> c){
-		Set<String> rtn = attrLookup.get(a).keySet();
-		rtn.removeAll(c);
+	public static List<String> getMissingValues(Attr a, Collection<String> c){
+		Set<String> values = attrLookup.get(a).keySet();
+		List<String> rtn = new ArrayList<String>();
+		
+		for(String s : values){
+			rtn.add(s);
+		}
 		return rtn;
 	}
 	

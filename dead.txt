@@ -1,0 +1,60 @@
+	/**
+	 * @param trainingExamples Examples to use to train the tree
+	 * @param rule SplitRule to use to choose the best attribute to split on.
+	 * @return the shortest height tree with the highest accuracy
+	 */
+	private static DecisionTree buildOptimalTree(List<Example> trainingExamples, SplitRule rule){
+		DecisionTree rtn = null;
+		
+		double maxAcc = -1;
+		double lastAcc = 0;
+		int maxHeight = 0;
+		DecisionTree t = null;
+		
+		while(maxAcc < lastAcc){
+			rtn = new DecisionTree(rule, maxHeight);
+			rtn.train(trainingExamples);
+			maxAcc = lastAcc;
+			maxHeight++;
+			
+			//Validate accuracy using 10-fold validation.
+			double accSum = 0;
+			int offset = trainingExamples.size() / NUM_FOLDS;
+			for(int i = 0; i < NUM_FOLDS; i++){
+				t = new DecisionTree(rule, maxHeight);
+				List<Example> validationExamples = partitionExamples(trainingExamples, i);
+				
+				t.train(trainingExamples);
+				accSum += test(t, validationExamples);
+				
+				trainingExamples.addAll(i * offset, validationExamples);
+			}
+			lastAcc = accSum / (double)NUM_FOLDS;
+			
+			if(DEBUG)
+				System.out.println("Accuracy = " + lastAcc + " at height " + maxHeight);
+		}
+		maxHeight--;
+		
+		if(DEBUG)
+			System.out.println("For splitting rule " + rule + " max validation accuracy = " + maxAcc + " achieved at height " + maxHeight);
+		
+		return rtn;
+	}
+	
+		/**
+	 * @param source List to remove examples from
+	 * @param curFold current fold of validation
+	 * @return the partition of examples that were removed from source
+	 */
+	private static List<Example> partitionExamples(List<Example> source, int curFold){
+		List<Example> rtn = new ArrayList<Example>();
+		int offset = source.size() / NUM_FOLDS;
+		int start = offset * curFold;
+		int end =  (curFold == NUM_FOLDS - 1) ? source.size() : start + offset;
+		
+		for(int i = start; i < end; i++)
+			rtn.add(source.remove(start));
+		
+		return rtn;
+	}

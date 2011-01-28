@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -7,20 +6,43 @@ import java.util.Map;
 import java.util.Set;
 
 
-public class DecisionTree {
+public class DecisionTree implements Classifier {
 	private Node root;
 	private SplitRule rule;
+	private boolean useFullTree;
 	private int maxDepth;
 	private int depth;
 	
-	public DecisionTree(SplitRule rule, int maxDepth){
+	/**
+	 * Initializes a full decision tree
+	 * @param rule SplitRule to use to choose the next best attribute to split on
+	 * @param useFullTree specifies whether or not it should stop splitting based off of the chi-square test
+	 */
+	public DecisionTree(SplitRule rule, boolean useFullTree){
+		this(rule, useFullTree, -1);
+	}
+	
+	/**
+	 * @param rule SplitRule to use to choose the next best attribute to split on
+	 * @param useFullTree specifies whether or not it should stop splitting based off of the chi-square test
+	 * @param maxDepth max depth this tree should go to
+	 */
+	public DecisionTree(SplitRule rule, boolean useFullTree, int maxDepth){
 		this.rule = rule;
 		this.root = null;
+		this.useFullTree = useFullTree;
 		this.maxDepth = maxDepth;
 		this.depth = 0;
 	}
 	
+	/**
+	 * @param e example to classify/label
+	 * @return classification/label of the given example guess based off of this DecisionTree
+	 */
 	public Label predict(Example e){
+		if(this.root == null){
+			return Label.values()[(int)(Label.values().length * Math.random())];
+		}
 		Node curRoot = this.root;
 		while(!(curRoot instanceof LeafNode)){
 			DecisionNode n = (DecisionNode)curRoot;
@@ -34,21 +56,37 @@ public class DecisionTree {
 		for(Attr a : Attr.values())
 			attributes.add(a);
 		
-		this.root = id3(divideExamples(examples), attributes, 0);
+		this.root = id3(Utils.divideExamples(examples), attributes, 0);
 	}
 	
+	/**
+	 * @param examples list of examples to train on split based on their label (Examples with the label l could be retrieved with 'examples.get(l)')
+	 * @param attributes list of attributes to split the training examples on
+	 * @param curDepth current depth in the decision tree
+	 * @return A decision tree based on the given examples. Either a LeafNode(where a classification can be made)
+	 * or a DecisionNode(where the predict function can traverse left or right based on the attribute in that DecisionNode).
+	 */
 	private Node id3(Map<Label, List<Example>> examples, List<Attr> attributes, int curDepth){
-		if(examples.keySet().size() == 1 || attributes.size() == 0 || curDepth == this.maxDepth){
-			return classify(examples);
+		if(examples.keySet().size() == 1 || attributes.size() == 0 || this.maxDepth != -1 && curDepth == this.maxDepth){
+			return Utils.classify(examples);
 		}else{
 			int attrIndex = getBestAttr(examples, attributes);
 			Attr a = attributes.get(attrIndex);
 			
-			Map<String, Map<Label, List<Example>>> splitExamples = divideExamples(examples, a);
+			Map<String, Map<Label, List<Example>>> splitExamples = Utils.divideExamples(examples, a);
+			
+			if(!this.useFullTree){
+				double chiSquare = Utils.chiSquare(examples, splitExamples);
+				if(id3.DEBUG) System.out.println("Depth: " + curDepth + " chi: " + chiSquare);
+				if(!Attr.isSignificant(a, chiSquare)){
+					return Utils.classify(examples);
+				}
+			}
+			
 			List<String> emptyValues = Attr.getMissingValues(a, splitExamples.keySet());
 			
 			DecisionNode curNode = new DecisionNode(a);
-			LeafNode curLeaf = classify(examples);
+			LeafNode curLeaf = Utils.classify(examples);
 			for(String val : emptyValues){
 				curNode.addBranch(val, curLeaf);
 			}
@@ -63,6 +101,11 @@ public class DecisionTree {
 		}
 	}
 	
+	/**
+	 * @param examples current list of examples
+	 * @param attributes current list of attributes
+	 * @return index of the most selected attribute to split on. Chosen based off of the global SplittingRule, rule.
+	 */
 	private int getBestAttr(Map<Label, List<Example>> examples, List<Attr> attributes){
 		if(this.rule.equals(SplitRule.RANDOM))
 			return (int)(Math.random() * attributes.size());
@@ -73,7 +116,7 @@ public class DecisionTree {
 		
 		for(int i = 0; i < attributes.size(); i++){
 			Attr a = attributes.get(i);
-			Map<String, Map<Label, List<Example>>> attributeSplit = divideExamples(examples, a);
+			Map<String, Map<Label, List<Example>>> attributeSplit = Utils.divideExamples(examples, a);
 			double childrenImpurity = 0.0;
 			
 			for(String val : attributeSplit.keySet()){
@@ -89,49 +132,6 @@ public class DecisionTree {
 		}
 		
 		return maxInd;
-	}
-	
-	private static LeafNode classify(Map<Label, List<Example>> examples){
-		int max = -1;
-		Label rtn = null;
-		for(Label key : examples.keySet()){
-			int cnt = examples.get(key).size();
-			if(cnt >= max){
-				max = cnt;
-				rtn = key;
-			}
-		}
-		return new LeafNode(rtn);
-	}
-	
-	private static Map<String, Map<Label, List<Example>>> divideExamples(Map<Label, List<Example>> examples, Attr a){
-		Map<String, Map<Label, List<Example>>> rtn = new HashMap<String, Map<Label, List<Example>>>();
-		for(Label label : examples.keySet()){
-			for(Example e : examples.get(label)){
-				String val = e.getValue(a);
-				if(!rtn.containsKey(val)){
-					rtn.put(val, new HashMap<Label, List<Example>>());
-					rtn.get(val).put(label, new ArrayList<Example>());
-				}else if(!rtn.get(val).containsKey(label))
-					rtn.get(val).put(label, new ArrayList<Example>());
-				rtn.get(val).get(label).add(e);
-			}
-		}
-		return rtn;
-	}
-	
-	private static Map<Label, List<Example>> divideExamples(List<Example> examples){
-		Map<Label, List<Example>> rtn = new HashMap<Label, List<Example>>();
-		
-		for(Example e : examples){
-			Label l = e.getLabel();
-			if(!rtn.containsKey(l)){
-				rtn.put(l, new ArrayList<Example>());
-			}
-			rtn.get(l).add(e);
-		}
-		
-		return rtn;
 	}
 	
 	public String toString(){

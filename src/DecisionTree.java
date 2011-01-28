@@ -1,9 +1,7 @@
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 
 public class DecisionTree implements Classifier {
@@ -135,35 +133,20 @@ public class DecisionTree implements Classifier {
 	}
 	
 	public String toString(){
-		Set<Node> frontier = new HashSet<Node>();
-		frontier.add(this.root);
-		String rtn = "";
-		int curDepth = -1;
-		
-		while(!frontier.isEmpty()){
-			Set<Node> newFront = new HashSet<Node>();
-			rtn += repeat("\t", this.depth - curDepth);
-			for(Node n : frontier){
-				rtn += n.toString() + repeat(" ", this.depth - curDepth + 1);
-				
-				if(n instanceof DecisionNode){
-					Iterator<Node> children = ((DecisionNode)n).getChildren();
-					while(children.hasNext()){
-						newFront.add(children.next());
-					}
-				}
-			}
-			curDepth++;
-			rtn += "\n";
-			frontier = newFront;
-		}
-		return rtn;
+		return this.root == null ? "" : toString(this.root, "\t");
 	}
 	
-	private String repeat(String s, int cnt){
-		String rtn = "";
-		for(int i = 0; i < cnt; i++)
-			rtn += s;
-		return rtn;
+	public String toString(Node curRoot, String indent){
+		if(curRoot instanceof LeafNode){
+			return indent + curRoot.toString() + "\n";
+		}else{
+			String rtn = indent + curRoot.toString() + "\n";
+			Iterator<Node> i = ((DecisionNode)curRoot).getChildren();
+			while(i.hasNext()){
+				Node n = i.next();
+				rtn += toString(n, indent + "\t");
+			}
+			return rtn;
+		}
 	}
 }
